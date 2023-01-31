@@ -1,6 +1,6 @@
 # ✅ Certified banger
 
-A new Flutter project.
+in development...
 
 ## Getting Started
 
