@@ -43,14 +43,23 @@ dependencies:
   permission_handler:  ^7.0.1
   flutter_sound: 9.2.13
   path_provider:
-  record_mp3:
+  sizer: ^2.0.15
+  record_mp3: 3.0.0
   firebase_storage:
   audioplayers: ^0.20.1
+  firebase_core: ^1.10.2
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: "^0.12.0"
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

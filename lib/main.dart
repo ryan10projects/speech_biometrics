@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:sizer/sizer.dart';
 import 'package:be_project/Record.dart';
 import 'package:be_project/RegistrationPage.dart';
 import 'package:be_project/SecondRoute.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
@@ -34,9 +36,11 @@ bool isRecording = false;
 bool isLoading = false;
 String recordingPath = '';
 String user = username.text;
+bool audioexists = false;
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
   runApp( MyApp());
 }
 
@@ -83,6 +87,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
 
       body: Center(
@@ -91,9 +97,12 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
 
             Container(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 20),
               child: Padding(
-                padding: const EdgeInsets.only(top: 100.0),
+                padding: EdgeInsets.only(top: MediaQuery
+                    .of(context)
+                    .size
+                    .width*0.1),
                 child: Container(
                   width: MediaQuery
                       .of(context)
@@ -102,12 +111,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   height: MediaQuery
                       .of(context)
                       .size
-                      .height * 0.3,
+                      .height * 0.28,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     image: DecorationImage(
                         image: NetworkImage(
-                            'https://us.123rf.com/450wm/katflare/katflare1810/katflare181000027/116860015-vector-flat-voice-recognition-illustration-with-smartphone-screen-dynamic-microphone-icon-on-it-soun.jpg?ver=6'),
+                            'https://firebasestorage.googleapis.com/v0/b/be-project-2d61a.appspot.com/o/icon.png?alt=media&token=697f3b5e-81a9-4a14-aa3b-da31e942c3f6'),
                         fit: BoxFit.fill
                     ),
                   ),
@@ -116,18 +125,36 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
 
             Padding(
-              padding: const EdgeInsets.only(
-                  left: 50.0, right: 50, top: 10, bottom: 20),
+              padding:  EdgeInsets.only(
+                  left: MediaQuery
+                      .of(context)
+                      .size
+                      .width*0.1, right: MediaQuery
+                  .of(context)
+                  .size
+                  .width*0.1, top: MediaQuery
+                  .of(context)
+                  .size
+                  .width*0.1),
               child: TextField(
                 controller: username,
-
                 decoration: InputDecoration(
-                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.purple)),
+                  enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.purple)),
                   labelText: 'Username',
                   hintText: 'Enter Username',
+                  labelStyle: TextStyle(color: Colors.deepPurpleAccent),
+                  hintStyle: TextStyle(color: Colors.purple[800]),
+                  fillColor: Colors.purple[100],
+                  focusColor: Colors.purple[100],
+                  hoverColor: Colors.purple[100],
                 ),
               ),
             ),
+
+
             TextButton(
                 style: ButtonStyle(
                   foregroundColor: MaterialStateProperty.all<Color>(
@@ -144,13 +171,37 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
                 onPressed: () async {
-                  isactive = !isactive;
-                  if (isactive) {
-                    playAudio();
-                    startRecord();
-                  } else {
-                    stopRecord();
-                    stopAudio();
+                  if (username == null || username.text.isEmpty) {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text("Error"),
+                          content: Text("Username cannot be empty"),
+                          actions: [
+                            TextButton(
+                              child: Text("OK"),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    return;
+                  }
+                  else {
+                    isactive = !isactive;
+                    if (isactive) {
+
+                      playAudio();
+                      startRecord();
+                      audioexists=true;
+                    } else {
+                      stopRecord();
+                      stopAudio();
+                    }
                   }
                 },
                 child: Column(
@@ -188,13 +239,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
             isLoading ? Center(child: Column(
               children: [
+                SizedBox(height: MediaQuery.of(context).size.height*0.01),
                 CircularProgressIndicator(),
+
+                SizedBox(height: MediaQuery.of(context).size.height*0.02),
                 Text("Please wait while we are processing your voice",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontStyle: FontStyle.italic,
                   ),),
-                SizedBox(height: 220,),
+
+                SizedBox(height:MediaQuery.of(context).size.height*0.2),
               ],
             )) : Row(
               children: [
@@ -205,143 +260,220 @@ class _MyHomePageState extends State<MyHomePage> {
                       .width * 0.26,
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 270.0),
+                  padding: EdgeInsets.only(bottom: MediaQuery
+                      .of(context)
+                      .size
+                      .width*0.6),
                   child: GestureDetector(
                     onTap: () async {
-                      setState(() {
-                        isLoading = true;
-                      });
-                      user = username.text;
-                      FirebaseFirestore.instance.collection("users")
-                          .doc(user)
-                          .get()
-                          .then((doc) async {
-                        if (doc.exists) {
-                          print("usss");
 
-                          final filePath = 'storage/emulated/0/Documents/audio.mp3';
-                          File file2 = File(filePath);
-                          //recordFilePath = getFilePath();
-                          List<int> audioData = utf8.encode(recordFilePath);
-                          if (audioData != null) {
-                            await file2.writeAsBytes(audioData);
-                          }
-                          String filePathLocal = 'storage/emulated/0/Documents/$user/audio.mp3';
-                          File file = File(filePathLocal);
-                          List<int> audioDataFire = await file.readAsBytes();
-                          // FirebaseStorage storage = FirebaseStorage.instance;
-                          //
-                          // var reference = storage.ref().child('audio/$user/audio.mp3');
-                          // var uploadTask = reference.putFile(file);
-                          // await uploadTask.whenComplete(() => print('File Uploaded'));
+                      user = username.text;
+                      if (username == null || username.text.isEmpty) {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text("Error"),
+                              content: Text("Username cannot be empty"),
+                              actions: [
+                                TextButton(
+                                  child: Text("OK"),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                     return;
+                      }else if(audioexists==false){
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text("Error"),
+                              content: Text("You must record audio first"),
+                              actions: [
+                                TextButton(
+                                  child: Text("OK"),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                        return;
+                    } else  {
+                        setState(() {
+                          isLoading = true;
+                        });
+                        FirebaseFirestore.instance.collection("users")
+                            .doc(user)
+                            .get()
+                            .then((doc) async {
+                          if (doc.exists) {
+                            print("usss");
+
+                            //  final filePath = 'storage/emulated/0/Documents/audio.mp3';
+                            //    File file2 = File(filePath);
+                            //recordFilePath = getFilePath();
+                            //List<int> audioData = utf8.encode(recordFilePath);
+                            // if (audioData != null) {
+                            //   await file2.writeAsBytes(audioData);
+                            // }
+                            String filePathLocal = 'storage/emulated/0/Documents/$user/audio.mp3';
+                            File file = File(filePathLocal);
+                            List<int> audioDataFire = await file.readAsBytes();
+                            // FirebaseStorage storage = FirebaseStorage.instance;
+                            //
+                            // var reference = storage.ref().child('audio/$user/audio.mp3');
+                            // var uploadTask = reference.putFile(file);
+                            // await uploadTask.whenComplete(() => print('File Uploaded'));
 
 //                       File audio = File(recordingPath.toString());
 //                       //send audio file to an http server
 //                       // The server URL
-                          final String url = 'https://beproject.loca.lt/';
-                          //add a timer to wait for the server to process the audio file
-                          final http.MultipartRequest request = http
-                              .MultipartRequest('POST', Uri.parse(url));
+                            final String url = 'https://beproject.loca.lt/';
+                            //add a timer to wait for the server to process the audio file
+                            final http.MultipartRequest request = http
+                                .MultipartRequest('POST', Uri.parse(url));
 // Add the audio file to the request
-                          final file3 = await http.MultipartFile.fromPath(
-                              'file', file.path);
-                          request.files.add(file3);
-                          // Add the username to the request
-                          user = username.text;
-                          request.fields['username'] = user;
+                            final file3 = await http.MultipartFile.fromPath(
+                                'file', file.path);
+                            request.files.add(file3);
+                            // Add the username to the request
+                            user = username.text;
+                            request.fields['username'] = user;
 // Send the request
 
-                          final response = await request.send();
-                          // Check the response
-                          if (response.statusCode == HttpStatus.ok) {
-                            print("Uploaded");
-                            FirebaseFirestore.instance
-                                .collection("users")
-                                .doc(user)
-                                .get()
-                                .then((documentSnapshot) {
-                              if (documentSnapshot.exists &&
-                                  documentSnapshot["isSignedIn"] == true) {
-                                setState(() {
-                                  isLoading = false;
-                                });
-                                showDialog(
-                                    context: context, builder: (context) {
-                                  return AlertDialog(
-                                    title: Text("User logged in!"),
-                                    content: Text("Welcome back $user!"),
-                                    actions: [
-                                      TextButton(onPressed: () {
-                                        Navigator.pop(context);
-                                      }, child: Text("OK"))
-                                    ],
-                                  );
-                                });
-                                // Document exists and signedin field is true
-                              } else {
-                                setState(() {
-                                  isLoading = false;
-                                  print(isLoading);
-                                });
-                                showDialog(
-                                    context: context, builder: (context) {
-                                  return AlertDialog(
-                                    title: Text(
-                                        "Try again, your voice did not match!"),
-                                    content: Text(
-                                        "Failed to match audio for $user!"),
-                                    actions: [
-                                      TextButton(onPressed: () {
-                                        Navigator.pop(context);
-                                      }, child: Text("OK"))
-                                    ],
-                                  );
-                                });
-                                // Document does not exist or signedin field is false
-                              }
-                            });
+                            final response = await request.send();
+                            // Check the response
+                            if (response.statusCode == HttpStatus.ok) {
+                              print("Uploaded");
+                              FirebaseFirestore.instance
+                                  .collection("users")
+                                  .doc(user)
+                                  .get()
+                                  .then((documentSnapshot) {
+                                if (documentSnapshot.exists &&
+                                    documentSnapshot["isSignedIn"] == true) {
+                                  setState(() {
+                                    isLoading = false;
+                                  });
+                                  showDialog(
+                                      context: context, builder: (context) {
+                                    return AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                              20.0)),
+                                      title: Text("User logged in!",
+                                          style: TextStyle(
+                                              color: Colors.purple)),
+                                      content: Text("Welcome back $user!",
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                      actions: [
+                                        TextButton(onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                            child: Text("OK", style: TextStyle(
+                                                color: Colors.purple)))
+                                      ],
+                                    );
+                                  });
+                                  // Document exists and signedin field is true
+                                } else {
+                                  setState(() {
+                                    isLoading = false;
+                                    print(isLoading);
+                                  });
+                                  showDialog(
+                                      context: context, builder: (context) {
+                                    return AlertDialog(
+                                      title: Text(
+                                          "Try again, your voice did not match!",
+                                          style: TextStyle(
+                                              color: Colors.purple)),
+                                      content: Text(
+                                          "Failed to match audio for $user!"),
+                                      actions: [
+                                        TextButton(onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                            child: Text("OK", style: TextStyle(
+                                                color: Colors.purple)))
+                                      ],
+                                    );
+                                  });
+                                  // Document does not exist or signedin field is false
+                                }
+                              });
+                            } else {
+                              print('Failed to upload file');
+                            }
                           } else {
-                            print('Failed to upload file');
-                          }
-                        } else {
-                          setState(() {
-                            isLoading = false;
-                          });
-                          print("User with ID " + user + " doesn't exists!");
-                          showDialog(context: context, builder: (context) {
-                            return AlertDialog(
-                              title: Text(
-                                  "User with ID " + user + " doesn't exists!"),
-                              content: Text(
-                                  "Please enter a different username"),
-                              actions: [
-                                TextButton(onPressed: () {
-                                  Navigator.pop(context);
-                                }, child: Text("OK"))
-                              ],
+                            setState(() {
+                              isLoading = false;
+                            });
+                            print("User with ID " + user + " doesn't exists!");
+                            showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                            20.0)),
+                                    title: Text("User with ID " + user +
+                                        " doesn't exists!",
+                                        style: TextStyle(color: Colors.purple)),
+                                    content: Text(
+                                        "Please enter a different username",
+                                        style: TextStyle(color: Colors.black,
+                                            fontWeight: FontWeight.bold)),
+                                    backgroundColor: Colors.grey[200],
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                        child: Text("OK", style: TextStyle(
+                                            color: Colors.purple)),
+                                      )
+                                    ],
+                                  );
+                                }
+
                             );
-                          });
-                        }
-                      });
+                          }
+                        });
 
 
 // // Close the HTTP client
-                      //listen to request
-                      //store the user  in firebase firestore
-                      //store the audio file in firebase storage
-                      // Add a new document with the user's name as the key
+                        //listen to request
+                        //store the user  in firebase firestore
+                        //store the audio file in firebase storage
+                        // Add a new document with the user's name as the key
 
-
+                      }
                     },
                     child: Container(
-                      width: 100,
+                      width: MediaQuery.of(context).size.width * 0.22,
                       decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(MediaQuery
+                              .of(context)
+                              .size
+                              .width*0.22),
                           color: Colors.purple),
                       child: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(MediaQuery
+                                .of(context)
+                                .size
+                                .width*0.022),
                             child: Text("LOGIN", textAlign: TextAlign.center,
                               style: TextStyle(
                                   fontWeight: FontWeight.w900,
@@ -362,9 +494,14 @@ class _MyHomePageState extends State<MyHomePage> {
                       .size
                       .width * 0.03,
                 ),
+
+
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 270.0),
-                  child: isLoading ? Container() : GestureDetector(
+                  padding: EdgeInsets.only(bottom: MediaQuery
+                      .of(context)
+                      .size
+                      .width*0.6),
+                  child: GestureDetector(
                     onTap: () async {
                       Navigator.push(
                         context,
@@ -373,20 +510,27 @@ class _MyHomePageState extends State<MyHomePage> {
                       );
                     },
                     child: Container(
-                      width: 110,
+                      width: MediaQuery.of(context).size.width * 0.22,
                       decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(MediaQuery
+                              .of(context)
+                              .size
+                              .width*0.22),
                           color: Colors.purple),
                       child: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              "Register Now", textAlign: TextAlign.center,
+                            padding: EdgeInsets.all(MediaQuery
+                                .of(context)
+                                .size
+                                .width*0.025),
+                            child: Text("REGISTER", textAlign: TextAlign.center,
                               style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   color: Colors.white),),
                           ),
+                          // create a text widget and print result
+
                         ],
                       ),
                     ),
